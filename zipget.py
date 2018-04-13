@@ -22,7 +22,7 @@ def unzip_to(fname, tgt):
 def path_from_config(config,path):
     if os.path.isabs(path):
         return path
-    return os.path.join(config['root'], path)
+    return os.path.normpath(os.path.join(config['root'], path))
 
 
 def handle_fetch(fetch, config):
@@ -43,14 +43,13 @@ def handle_fetch(fetch, config):
 def handle_recipe(fname):
     r = json.load(open(fname))
 
-    archive_dirs = r['config']['archive']
-    archive = [f for f in archive_dirs if os.path.isdir(f)][0]
     config = {
-        "archive": archive,
         "root": os.path.abspath(os.path.dirname(fname))
     }
-
-
+    archive_dirs = r['config']['archive']
+    archive = [f for f in archive_dirs if os.path.isdir(path_from_config(config, f) )][0]
+    config['archive'] = path_from_config(config, archive)
+    print config
     for frag in r['fetch']:
         def fetcher():
             handle_fetch(frag, config)
@@ -60,7 +59,7 @@ def handle_recipe(fname):
         t.start()
 
 def main():
-    handle_recipe('demo_recipe.json')
+    handle_recipe(sys.argv[1])
 
 if __name__ == "__main__":
     main()
