@@ -1,15 +1,50 @@
 import json
 import sys
-import urllib
+from urllib2 import urlopen, HTTPError
 import md5
 import itertools
 import os
 import subprocess
 import shutil
 import threading
+import time
+
+MAX_RETRIES = 5
+BLOCK_SIZE = 10 * 1024 * 1024
+
+def stream_to_file(to_file_name, from_file_obj):
+    with open(to_file_name, "wb") as f:
+        while 1:
+            block = from_file_obj.read(BLOCK_SIZE)
+            if not block:
+                break
+            f.write(block)
+
+process_exit_code = 0
+
 
 def fetch_url(url, tgt):
-    urllib.urlretrieve(url, tgt)
+    retries = MAX_RETRIES
+    global process_exit_code
+
+    while 1:
+
+        try:
+            content = urlopen(url)
+        except HTTPError,e:
+            if e.code >= 500:
+                retries -= 1
+                print "Fail", url, "retry", retries, e
+                if retries <= 0:
+                    raise e
+                time.sleep(5)
+                continue
+            else:
+                process_exit_code = 1
+                raise
+        stream_to_file(tgt, content)
+        break
+
 
 def file_name_from_url(url):
     hash = md5.md5(url).hexdigest()
@@ -49,14 +84,18 @@ def handle_recipe(fname):
     archive_dirs = r['config']['archive']
     archive = [f for f in archive_dirs if os.path.isdir(path_from_config(config, f) )][0]
     config['archive'] = path_from_config(config, archive)
-    print config
+    threads = []
     for frag in r['fetch']:
-        def fetcher():
-            handle_fetch(frag, config)
-            sys.stdout.write(".")
-
-        t = threading.Thread(target=fetcher)
+        t = threading.Thread(target=handle_fetch, args=(frag, config))
+        threads.append(t)
         t.start()
+
+    for t in threads:
+        t.join()
+
+    if process_exit_code > 0:
+        print "Zipget failed with exit code", process_exit_code
+        sys.exit(process_exit_code)
 
 def main():
     handle_recipe(sys.argv[1])
