@@ -1,0 +1,16 @@
+{
+    "config": {
+        "archive": ["./t/archive"]
+    },
+    "fetch": [
+        {
+            "url": "https://github.com/vivainio/Modulize/releases/download/v2.1/Modulize.zip",
+            "unzipTo": "./t"
+        },
+        {
+            "url": "https://github.com/vivainio/hashibuild/archive/v0.1.zip",
+            "unzipTo": "./t",
+            "saveAs": "./t/zippi.zip"
+        }
+    ]
+}
