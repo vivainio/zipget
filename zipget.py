@@ -8,6 +8,7 @@ import subprocess
 import shutil
 import threading
 import time
+import tempfile
 
 MAX_RETRIES = 5
 BLOCK_SIZE = 10 * 1024 * 1024
@@ -74,6 +75,14 @@ def handle_fetch(fetch, config):
     if saveTarget:
         shutil.copy(targetpath, path_from_config(config, saveTarget))
 
+def created_temp_dir():
+    """ creates archive directory in temp (used of none of specified exist) """
+    pth = os.path.join(tempfile.gettempdir(), "zipget")
+    if not os.path.isdir(pth):
+        print "Warning: none of archive dirs existed, creating", pth
+        os.makedirs(pth)
+    return pth
+
 
 def handle_recipe(fname):
     r = json.load(open(fname))
@@ -82,7 +91,12 @@ def handle_recipe(fname):
         "root": os.path.abspath(os.path.dirname(fname))
     }
     archive_dirs = r['config']['archive']
-    archive = [f for f in archive_dirs if os.path.isdir(path_from_config(config, f) )][0]
+    archive_tries = [f for f in archive_dirs if os.path.isdir(path_from_config(config, f) )]
+    if len(archive_tries) == 0:
+        archive = created_temp_dir()
+    else:
+        archive = archive_tries[0]
+
     config['archive'] = path_from_config(config, archive)
     threads = []
     for frag in r['fetch']:
