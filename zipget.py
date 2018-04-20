@@ -60,6 +60,10 @@ def path_from_config(config,path):
         return path
     return os.path.normpath(os.path.join(config['root'], path))
 
+def run_exe(target_path, args):
+    parts = [target_path] + args
+    print ">", target_path, args
+    subprocess.check_call(parts)
 
 def handle_fetch(fetch, config):
     url = fetch['url']
@@ -74,6 +78,9 @@ def handle_fetch(fetch, config):
     saveTarget = fetch.get("saveAs")
     if saveTarget:
         shutil.copy(targetpath, path_from_config(config, saveTarget))
+    runargs = fetch.get("runWithArgs")
+    if runargs:
+        run_exe(targetpath, runargs)
 
 def created_temp_dir():
     """ creates archive directory in temp (used of none of specified exist) """
