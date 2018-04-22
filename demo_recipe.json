@@ -5,20 +5,28 @@
 
     "fetch": [
         {
+            "tags": ["a"],
             "url": "https://github.com/vivainio/Modulize/releases/download/v2.1/Modulize.zip",
             "unzipTo": "./t"
         },
         {
+            "tags": ["b", "a"],
             "url": "https://github.com/vivainio/hashibuild/archive/v0.1.zip",
             "unzipTo": "./t",
             "saveAs": "./t/zippi.zip"
         },
         {
+            "tags": ["python3"],
             "url": "https://www.python.org/ftp/python/3.6.5/python-3.6.5-amd64.exe",
-            "runWithArgs": ["/quiet", "TargetDir=c:\\Python3", "InstallAllUsers=1", "InstallLauncherAllUsers=1",
+            "runWithArgs": ["/passive", "TargetDir=c:\\Python3", "InstallAllUsers=1", "InstallLauncherAllUsers=1",
                 "Include_pip=1", "Include_test=0", "Include_doc=0", "Shortcuts=0", "AssociateFiles=0", "PrependPath=0",
                  "Include_tcltk=0"]
-        }
+        },
+        {
+            "tags": ["nvm"],
+            "url": "https://github.com/coreybutler/nvm-windows/releases/download/1.1.5/nvm-noinstall.zip",
+            "unzipTo": "c:/nvm"
 
+        }
     ]
 }

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import json
 import sys
 from urllib2 import urlopen, HTTPError
@@ -9,6 +11,8 @@ import shutil
 import threading
 import time
 import tempfile
+from argparse import ArgumentParser
+import pprint
 
 MAX_RETRIES = 5
 BLOCK_SIZE = 10 * 1024 * 1024
@@ -35,7 +39,7 @@ def fetch_url(url, tgt):
         except HTTPError,e:
             if e.code >= 500:
                 retries -= 1
-                print "Fail", url, "retry", retries, e
+                print("Fail", url, "retry", retries, e)
                 if retries <= 0:
                     raise e
                 time.sleep(5)
@@ -62,7 +66,7 @@ def path_from_config(config,path):
 
 def run_exe(target_path, args):
     parts = [target_path] + args
-    print ">", target_path, args
+    print(">", target_path, args)
     subprocess.check_call(parts)
 
 def handle_fetch(fetch, config):
@@ -86,12 +90,21 @@ def created_temp_dir():
     """ creates archive directory in temp (used of none of specified exist) """
     pth = os.path.join(tempfile.gettempdir(), "zipget")
     if not os.path.isdir(pth):
-        print "Warning: none of archive dirs existed, creating", pth
+        print("Warning: none of archive dirs existed, creating", pth)
         os.makedirs(pth)
     return pth
 
+def accept_frag(frag, tags):
+    # user didn't specify tags -> install everything
+    if not tags:
+        return True
 
-def handle_recipe(fname):
+    if not frag.get('tags'):
+        return False
+    # user specified tags -> install only if overlapping tags
+    return len(set(tags).intersection(set(frag['tags']))) > 0
+
+def handle_recipe(fname, args):
     r = json.load(open(fname))
 
     config = {
@@ -106,7 +119,11 @@ def handle_recipe(fname):
 
     config['archive'] = path_from_config(config, archive)
     threads = []
-    for frag in r['fetch']:
+    frags = [frag for frag in r['fetch'] if accept_frag(frag, args.tags)]
+    if args.v:
+        pprint.pprint(config)
+        pprint.pprint(frags)
+    for frag in frags:
         t = threading.Thread(target=handle_fetch, args=(frag, config))
         threads.append(t)
         t.start()
@@ -115,13 +132,18 @@ def handle_recipe(fname):
         t.join()
 
     if process_exit_code > 0:
-        print "Zipget failed with exit code", process_exit_code
+        print("Zipget failed with exit code", process_exit_code)
         sys.exit(process_exit_code)
 
-def main():
-    handle_recipe(sys.argv[1])
+def main(args):
+    """ Handle and dispatch args. Can be used as 'api' """
+    p = ArgumentParser()
+    p.add_argument('recipe', nargs=1, help="Recipe (json) file to run")
+    p.add_argument('tags', nargs="*", metavar="tag", help="Tags for parts of recipe to run")
+    p.add_argument('-v', action="store_true", help="Verbose output")
+    parsed = p.parse_args(args)
+    recipe = parsed.recipe[0]
+    handle_recipe(recipe, parsed)
 
 if __name__ == "__main__":
-    main()
-
-
+    main(sys.argv[1:])
