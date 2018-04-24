@@ -18,12 +18,17 @@ MAX_RETRIES = 5
 BLOCK_SIZE = 10 * 1024 * 1024
 
 def stream_to_file(to_file_name, from_file_obj):
-    with open(to_file_name, "wb") as f:
+    fd, tmpfile_name = tempfile.mkstemp(dir = os.path.dirname(to_file_name))
+    print("to", tmpfile_name)
+    try:
         while 1:
             block = from_file_obj.read(BLOCK_SIZE)
             if not block:
                 break
-            f.write(block)
+            os.write(fd, block)
+    finally:
+        os.close(fd)
+        os.rename(tmpfile_name, to_file_name)
 
 process_exit_code = 0
 
@@ -31,7 +36,6 @@ process_exit_code = 0
 def fetch_url(url, tgt):
     retries = MAX_RETRIES
     global process_exit_code
-
     while 1:
 
         try:
