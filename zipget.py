@@ -57,8 +57,8 @@ def fetch_url(url, tgt):
 
 def file_name_from_url(url):
     hash = md5.md5(url).hexdigest()
-
-    return hash + "_" + url.rsplit("/")[-1]
+    fpart = "".join(ch for ch in url.rsplit("/")[-1] if ch.isalnum())
+    return hash + "_" + fpart
 
 def unzip_to(fname, tgt):
     subprocess.check_call(["unzip",  "-o", "-q", fname, "-d", tgt])
