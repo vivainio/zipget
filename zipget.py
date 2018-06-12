@@ -32,6 +32,14 @@ def stream_to_file(to_file_name, from_file_obj):
 
 process_exit_code = 0
 
+_report_log = []
+
+def report_ok(s):
+    _report_log.append(s)
+
+def report_flush():
+    out = "\n".join("zipget: " + l for l in _report_log)
+    print(out)
 
 def fetch_url(url, tgt):
     retries = MAX_RETRIES
@@ -51,6 +59,11 @@ def fetch_url(url, tgt):
             else:
                 process_exit_code = 1
                 raise
+        except Exception,e:
+            print("Fail with exception",e)
+            process_exit_code = 2
+            raise
+
         stream_to_file(tgt, content)
         break
 
@@ -62,6 +75,7 @@ def file_name_from_url(url):
 
 def unzip_to(fname, tgt):
     subprocess.check_call(["unzip",  "-o", "-q", fname, "-d", tgt])
+    report_ok("unzipped %s <- %s" % (tgt, fname))
 
 def path_from_config(config,path):
     if os.path.isabs(path):
@@ -72,6 +86,13 @@ def run_exe(target_path, args):
     parts = [target_path] + args
     print(">", target_path, args)
     subprocess.check_call(parts)
+
+def ensure_dir_for(pth):
+    dname = os.path.dirname(pth)
+    if not dname:
+        return
+    if not os.path.isdir(dname):
+        os.makedirs(dname)
 
 def handle_fetch(fetch, config):
     url = fetch['url']
@@ -85,7 +106,10 @@ def handle_fetch(fetch, config):
         unzip_to(targetpath, path_from_config(config, ziptarget))
     saveTarget = fetch.get("saveAs")
     if saveTarget:
-        shutil.copy(targetpath, path_from_config(config, saveTarget))
+        trg = path_from_config(config, saveTarget)
+        ensure_dir_for(trg)
+        shutil.copy(targetpath, trg)
+        report_ok("saved %s <- %s" % (trg, targetpath))
     runargs = fetch.get("runWithArgs")
     if runargs:
         run_exe(targetpath, runargs)
@@ -135,6 +159,7 @@ def handle_recipe(fname, args):
     for t in threads:
         t.join()
 
+    report_flush()
     if process_exit_code > 0:
         print("Zipget failed with exit code", process_exit_code)
         sys.exit(process_exit_code)
