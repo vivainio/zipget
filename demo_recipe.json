@@ -17,7 +17,7 @@
         },
         {
             "tags": ["python3"],
-            "url": "https://www.python.org/ftp/python/3.6.5/python-3.6.5-amd64.exe",
+            "url": "https://www.python.org/ftp/python/3.7.0/python-3.7.0-amd64.exe",
             "runWithArgs": ["/passive", "TargetDir=c:\\Python3", "InstallAllUsers=1", "InstallLauncherAllUsers=1",
                 "Include_pip=1", "Include_test=0", "Include_doc=0", "Shortcuts=0", "AssociateFiles=0", "PrependPath=0",
                  "Include_tcltk=0"]
