@@ -27,6 +27,11 @@
             "url": "https://github.com/coreybutler/nvm-windows/releases/download/1.1.5/nvm-noinstall.zip",
             "unzipTo": "c:/nvm"
 
+        },
+        {
+            "tags": ["chromium"],
+            "url": "https://github.com/henrypp/chromium/releases/download/v73.0.3683.103-r625896-win64/chromium-sync.zip",
+            "unzipTo": "c:/chromium"
         }
     ]
 }
