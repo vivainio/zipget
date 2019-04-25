@@ -2,8 +2,13 @@ from __future__ import print_function
 
 import json
 import sys
-from urllib2 import urlopen, HTTPError
-import md5
+try:  # Python 3
+    from urllib.request import urlopen
+    from urllib.error import HTTPError
+    from hashlib import md5
+except ImportError:  # Python 2
+    from urllib2 import urlopen, HTTPError
+    from md5 import md5
 import itertools
 import os
 import subprocess
@@ -53,7 +58,7 @@ def fetch_url(url, tgt):
 
         try:
             content = urlopen(url)
-        except HTTPError, e:
+        except HTTPError as e:
             if e.code >= 500:
                 retries -= 1
                 print("Fail", url, "retry", retries, e)
@@ -64,17 +69,18 @@ def fetch_url(url, tgt):
             else:
                 process_exit_code = 1
                 raise
-        except Exception, e:
+        except Exception as e:
             print("Fail with exception", e)
             process_exit_code = 2
             raise
 
         stream_to_file(tgt, content)
+
         break
 
 
 def file_name_from_url(url):
-    hash = md5.md5(url).hexdigest()
+    hash = md5(url.encode()).hexdigest()
     fpart = "".join(ch for ch in url.rsplit("/")[-1] if ch.isalnum())
     return hash + "_" + fpart
 
@@ -82,7 +88,21 @@ def file_name_from_url(url):
 def unzip_to(fname, tgt):
     ensure_dir_for(tgt)
 
-    subprocess.check_call(["unzip", "-o", "-q", fname, "-d", tgt])
+    with open(fname, 'rb') as f:
+        if f.read(2) != b"PK":
+            print("Not zip file, head, deleting:")
+            print(f.read(1000))
+            f.close()
+            os.remove(fname)
+            raise Exception("File was not zip file %s (%s), deleted", fname, tgt)
+
+    parms = ["-o", fname, "-d", tgt]
+    status = subprocess.call(["unzip", "-q"] + parms)
+    if status != 0:
+        print("unzip failed, retrying", parms)
+        time.sleep(1)
+        subprocess.check_call(["unzip"] + parms)
+
     report_ok("unzipped %s <- %s" % (tgt, fname))
 
 
@@ -96,6 +116,12 @@ def run_exe(target_path, args):
     parts = [target_path] + args
     print(">", target_path, args)
     subprocess.check_call(parts)
+
+
+def run_shell_commands(target_path, args_list):
+    for args in args_list:
+        print(">", target_path, args)
+        subprocess.check_call(args, shell=True, cwd=target_path)
 
 
 def ensure_dir(dname):
@@ -117,6 +143,10 @@ def handle_fetch(fetch, config):
     targetpath = os.path.join(archive_dir, fname)
     if not os.path.isfile(targetpath):
         fetch_url(url, targetpath)
+
+    if not os.path.isfile(targetpath):
+        raise Exception("File didn't exist: %s (%s)" % targetpath)
+
     ziptarget = fetch.get('unzipTo')
     if ziptarget:
         unzip_to(targetpath, path_from_config(config, ziptarget))
@@ -128,7 +158,20 @@ def handle_fetch(fetch, config):
         report_ok("saved %s <- %s" % (trg, targetpath))
     runargs = fetch.get("runWithArgs")
     if runargs:
-        run_exe(targetpath, runargs)
+        filepath = os.path.abspath(os.path.dirname(__file__))
+        rerouted = [f.replace("[[FILEPATH]]", filepath) for f in runargs]
+        run_exe(targetpath, rerouted)
+    postcommands = fetch.get("postCommands")
+    if postcommands:
+        if saveTarget:
+            targetdir = os.path.dirname(path_from_config(config, saveTarget))
+        elif ziptarget:
+            targetdir = path_from_config(config, ziptarget)
+        else:
+            raise RuntimeError('Either unzipTo or saveAs needs to be defined')
+        run_shell_commands(
+            path_from_config(config, targetdir),
+            postcommands)
 
 
 def created_temp_dir():
