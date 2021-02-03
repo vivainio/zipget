@@ -6,9 +6,11 @@ try:  # Python 3
     from urllib.request import urlopen
     from urllib.error import HTTPError
     from hashlib import md5
+    from typing import List as ListType
 except ImportError:  # Python 2
     from urllib2 import urlopen, HTTPError
     from md5 import md5
+    ListType = list
 import itertools
 import os
 import subprocess
@@ -34,7 +36,10 @@ def stream_to_file(to_file_name, from_file_obj):
             os.write(fd, block)
     finally:
         os.close(fd)
-        os.rename(tmpfile_name, to_file_name)
+        try:
+            os.rename(tmpfile_name, to_file_name)
+        except WindowsError as e:
+            print(e)
 
 
 process_exit_code = 0
@@ -126,7 +131,10 @@ def run_shell_commands(target_path, args_list):
 
 def ensure_dir(dname):
     if not os.path.isdir(dname):
-        os.makedirs(dname)
+        try:
+            os.makedirs(dname)
+        except WindowsError as err:
+            print("ensure_dir failed because of %s, ignoring" % err)
 
 
 def ensure_dir_for(pth):
@@ -147,31 +155,50 @@ def handle_fetch(fetch, config):
     if not os.path.isfile(targetpath):
         raise Exception("File didn't exist: %s (%s)" % targetpath)
 
+    filepath = os.path.abspath(os.path.dirname(__file__))
+    saveTarget = fetch.get("saveAs")
     ziptarget = fetch.get('unzipTo')
+    runargs = fetch.get("runWithArgs")
+
+    if saveTarget:
+        targetdir = os.path.dirname(path_from_config(config, saveTarget))
+    elif ziptarget:
+        targetdir = path_from_config(config, ziptarget)
+    else:
+        raise RuntimeError('Either unzipTo or saveAs needs to be defined')
+
+    precommands = fetch.get("preCommands")
+    if precommands:
+        run_shell_commands(
+            path_from_config(config, targetdir),
+            [
+                [f.replace("[[FILEPATH]]", filepath) for f in command] if isinstance(command, ListType) else command.replace("[[FILEPATH]]", filepath)
+                for command
+                in precommands
+            ])
+
     if ziptarget:
         unzip_to(targetpath, path_from_config(config, ziptarget))
-    saveTarget = fetch.get("saveAs")
+
     if saveTarget:
         trg = path_from_config(config, saveTarget)
         ensure_dir_for(trg)
         shutil.copy(targetpath, trg)
         report_ok("saved %s <- %s" % (trg, targetpath))
-    runargs = fetch.get("runWithArgs")
+
     if runargs:
-        filepath = os.path.abspath(os.path.dirname(__file__))
         rerouted = [f.replace("[[FILEPATH]]", filepath) for f in runargs]
         run_exe(targetpath, rerouted)
+
     postcommands = fetch.get("postCommands")
     if postcommands:
-        if saveTarget:
-            targetdir = os.path.dirname(path_from_config(config, saveTarget))
-        elif ziptarget:
-            targetdir = path_from_config(config, ziptarget)
-        else:
-            raise RuntimeError('Either unzipTo or saveAs needs to be defined')
         run_shell_commands(
             path_from_config(config, targetdir),
-            postcommands)
+            [
+                [f.replace("[[FILEPATH]]", filepath) for f in command] if isinstance(command, ListType) else command.replace("[[FILEPATH]]", filepath)
+                for command
+                in postcommands
+            ])
 
 
 def created_temp_dir():
