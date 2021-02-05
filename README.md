@@ -41,3 +41,13 @@ Mode                LastWriteTime         Length Name
 The preceding hash is the md5 checkum of the url (so same url is not downloaded twice).
 
 And then it unzips the files to target directory, and/or saves the downloaded file to specified file.
+
+# Installation
+
+```
+$ pip install zipget
+$ zipget my_recipe.json
+
+# Or: python -m zipget my_recipe.json
+```
+
