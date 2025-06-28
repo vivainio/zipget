@@ -1,5 +1,9 @@
 # zipget
 
+## Status
+
+This is deprecated in favor of [the rust version with many more features](https://github.com/vivainio/zipget-rs)
+
 Problem: you want to download and unzip a bunch of files somewhere, possibly getting them from offline cache if they
 were downloaded earlier.
 
